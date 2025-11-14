@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma";
 import Sidebar from "../components/sidebar";
 import { getCurrentUser } from "@/lib/auth";
 import { TrendingUp } from "lucide-react";
+import { text } from "stream/consumers";
+import ProductsChart from "../components/products-chart";
 
 export default async function DashboardPage() {
 
@@ -9,7 +11,7 @@ export default async function DashboardPage() {
   const userId = user.id;
 
   // Run Prisma queries in parallel
-  const [totalProducts, lowStock, allProducts] = await Promise.all([
+  const [totalProducts, lowStock, allProducts, recent] = await Promise.all([
     prisma.product.count({ where: { userId } }),
     prisma.product.count({
       where: {
@@ -22,13 +24,50 @@ export default async function DashboardPage() {
       where: { userId },
       select: { price: true, quantity: true, createdAt: true },
     }),
+    prisma.product.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    }),
   ]);
+
 
   // Derived metric
   const totalValue = allProducts.reduce(
     (sum, p) => sum + Number(p.price) * Number(p.quantity),
     0
   );
+
+  const now = new Date();
+  const weeklyProductsData = []
+
+  for (let i = 11; i >= 0;  i--) {
+    const weekStart = new Date(now);
+    weekStart.setDate(weekStart.getDate() - i * 7)
+    weekStart.setHours(0,0,0,0);
+
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6)
+    weekStart.setHours(23,59,59,999);
+    
+    const weekLabel = `${String(weekStart.getMonth() + 1).padStart(
+      2, 
+      "0"
+    )}/${String(weekStart.getDate() + 1).padStart(2, "0")}`;
+
+    const weekProducts = allProducts.filter((product) => {
+      const productDate = new Date(product.createdAt)
+      return productDate >= weekStart && productDate <= weekEnd;
+    });
+
+
+    weeklyProductsData.push({
+      week: weekLabel,
+      products: weekProducts.length,
+    })
+  }
+
+
 
   // Array of metrics for rendering
   const metrics = [
@@ -90,12 +129,54 @@ export default async function DashboardPage() {
 
             </div>
           </div>
+
+          {/* Inventory over time */}
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2>New Products per Week</h2>
+            </div>
+            <div className="h-48">
+              <ProductsChart data={weeklyProductsData} />
+            </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           {/* Stock Levels */}
-        </div>
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="flex items-center justify-between b-6">
+              <h2 className="text-lg font-semibold text-gray-900">
+                Stock Levels
+              </h2>
+            </div>
+            <div className="space-y-3">
+              {recent.map((product,key) => {
+                const stockLevel = product.quantity === 0 
+                ? 0 
+                : product.quantity <= (product.lowStockAt || 5)
+                ? 1 
+                : 2;
 
+                const bgColours = ["bg-red-600", "bg-yellow-600", "bg-green-600"]
+                const textColours = ["text-red-600", "text-yellow-600", "text-green-600"]
+                return (
+                  <div key={key} className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
+                    <div className="flex items-center space-x-3">
+                      <div className={`w-3 h-3 rounded-full ${bgColours[stockLevel]}`} />
+                      <span className="text-sm font-medium text-gray-900">
+                        {product.name}
+                      </span>
+                    </div>
+                    <div className={`text-sm font-medium ${textColours[stockLevel]}`}>
+                      {product.quantity} units
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+          {/* Efficiency */}
+        </div>
       </main>
     </div>
   );
