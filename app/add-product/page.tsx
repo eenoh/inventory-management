@@ -3,6 +3,10 @@ import Sidebar from "../components/sidebar";
 import Link from "next/link";
 import { createProduct } from "@/lib/actions/product";
 
+export const metadata = {
+  title: "Add Product",
+};
+
 export default async function AddProductPage() {
   const user = await getCurrentUser();
 

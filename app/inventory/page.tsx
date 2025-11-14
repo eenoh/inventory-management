@@ -5,6 +5,11 @@ import { deleteProduct } from "@/lib/actions/product";
 import InventorySearchBar from "../components/inventory-search-bar";
 import Pagination from "../components/pagination";
 
+export const metadata = {
+  title: "Inventory",
+};
+
+
 export const dynamic = "force-dynamic";
 
 type InventoryPageProps = {

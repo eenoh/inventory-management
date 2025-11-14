@@ -4,6 +4,10 @@ import { getCurrentUser } from "@/lib/auth";
 import { TrendingUp } from "lucide-react";
 import ProductsChart from "../components/products-chart";
 
+export const metadata = {
+  title: "Dashboard",
+};
+
 export default async function DashboardPage() {
   const user = await getCurrentUser();
   const userId = user.id;
